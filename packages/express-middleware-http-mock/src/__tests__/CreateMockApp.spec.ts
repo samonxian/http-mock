@@ -43,7 +43,7 @@ function commonTest(method: RequestMethod) {
   it(`should work with ${method} method`, () => {
     const req = httpMocks.createRequest({
       method,
-      url: '/api/v1/test/43',
+      url: '/api/v1/test/43?name=test',
     });
 
     const res = httpMocks.createResponse();
@@ -56,10 +56,12 @@ function commonTest(method: RequestMethod) {
     const mockApp = createMockAppInstance.getMockApp();
     mockApp[method.toLowerCase()]('/test/:id', (req: Request, res: Response) => {
       const { id } = req.params;
+      const { name } = req.query;
 
       res.send({
         data: {
           id,
+          name,
           'list|3': ['mock'],
         },
         msg: 'success',
@@ -72,6 +74,7 @@ function commonTest(method: RequestMethod) {
       mockjs.mock({
         data: {
           id: '43',
+          name: 'test',
           'list|3': ['mock'],
         },
         msg: 'success',
