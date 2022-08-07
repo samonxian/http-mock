@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import type { Mock } from '../../createMockMiddleware';
 
-export interface DefaultMockOptions {
+export interface UmiMockOptions {
   /**
    * mock 文件夹，需要指定，可不同于 mock 配置文件
    * @defaults path.resolve('./mock')
@@ -10,7 +10,12 @@ export interface DefaultMockOptions {
   mockFolder?: string;
 }
 
-export function umiMock(options?: DefaultMockOptions): Mock {
+/**
+ *  支持 umi mock 格式用法
+ *
+ * @param options.mockFolder mock 文件夹，需要指定，可不同于 mock 配置文件
+ */
+export function umiMock(options?: UmiMockOptions): Mock {
   const { mockFolder } = options || {};
   let mockConfigFile = path.resolve(__dirname, './mock.config.ts');
 

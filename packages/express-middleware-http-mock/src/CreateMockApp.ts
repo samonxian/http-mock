@@ -1,11 +1,22 @@
+import type { IncomingMessage, ServerResponse } from 'http';
+import url from 'url';
 import consola from 'consola';
 import mockjs from 'mockjs';
 import chalk from 'chalk';
 import _ from 'lodash';
 import { pathToRegexp } from 'path-to-regexp';
 import type { ParseOptions, TokensToRegexpOptions } from 'path-to-regexp';
-import type { NextFunction, Request, Response } from 'express';
 
+export interface Request extends IncomingMessage {
+  query: Record<string, any>;
+  params: {
+    [key: string]: string;
+  };
+}
+export interface Response extends ServerResponse {
+  send: (body: any) => void;
+}
+export type NextFunction = (err?: any) => void;
 export interface MockAppOptions {
   /**
    * 是否是单页面应用
@@ -29,7 +40,7 @@ const cacheLimit = 10000;
 let cacheCount = 0;
 
 /**
- * 创建 Mock App
+ * 创建 Mock App，兼容 express 和 vite server
  *
  * @example
  * ```js
@@ -69,22 +80,25 @@ export class CreateMockApp {
    * @returns res express response 对象
    */
   private getRewritedRes(res: Response) {
-    function rewritelWithMockJs(method: string) {
-      const tempResMethod = res[method];
-
-      res[method] = (body: any) => {
-        let lastBody = body;
-
-        if (_.isPlainObject(body)) {
-          lastBody = mockjs.mock(body);
+    // 兼容 express 的 send 方法
+    const send = res.send;
+    res.send = (body) => {
+      if (_.isPlainObject(body)) {
+        if (send) {
+          send(mockjs.mock(body));
+        } else {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(mockjs.mock(body)));
         }
-
-        tempResMethod(lastBody);
-      };
-    }
-    rewritelWithMockJs('json');
-    rewritelWithMockJs('jsonp');
-    rewritelWithMockJs('send');
+      } else {
+        if (send) {
+          send(body);
+        } else {
+          res.setHeader('Content-Type', 'text/plain');
+          res.end(body);
+        }
+      }
+    };
 
     return res;
   }
@@ -163,8 +177,9 @@ export class CreateMockApp {
       strict: false,
       sensitive: true,
     });
-
-    const match = regexp.exec(this.req.originalUrl);
+    const queryParams = url.parse(this.req.url, true);
+    this.req.query = queryParams.query;
+    const match = regexp.exec(queryParams.pathname);
 
     if (!match) {
       return;
@@ -198,11 +213,13 @@ export class CreateMockApp {
       const resultCallback = this.resultCallbackObj[req.method] || this.resultCallbackObj.any;
 
       if (!resultCallback) {
-        res.sendStatus(405);
+        res.statusCode = 405;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Method Not Allowed');
         logger.error(...loggerFormator());
       } else {
         try {
-          res.append('Cache-Control', 'no-cache');
+          res.setHeader('Cache-Control', 'no-cache');
           resultCallback(req, res);
 
           if ((res.statusCode >= 200 && res.statusCode < 300) || res.statusCode === 304) {
@@ -211,8 +228,11 @@ export class CreateMockApp {
             logger.error(...loggerFormator());
           }
         } catch (err) {
+          console.error(chalk.red(err));
           // 语法错误等
-          res.status(500).send(err.stack);
+          res.statusCode = 500;
+
+          res.end(err.stack);
           logger.error(...loggerFormator());
         }
       }
