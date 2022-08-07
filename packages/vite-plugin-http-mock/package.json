@@ -1,0 +1,22 @@
+{
+  "version": "0.0.0",
+  "name": "vite-plugin-http-mock",
+  "author": "samonxian",
+  "main": "lib/index.js",
+  "description": "vite http mock plugin.",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "clean": "rimraf lib tsconfig.tsbuildinfo",
+    "build": "npm run clean && vite build"
+  },
+  "dependencies": {
+    "express-middleware-http-mock": "^0.0.0"
+  },
+  "devDependencies": {
+    "rimraf": "^3.0.2",
+    "vite-plugin-build": "^0.3.4",
+    "vite": "^3.0.4"
+  }
+}
