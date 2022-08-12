@@ -1,13 +1,12 @@
 import path from 'path';
-import type { MockApp } from '../../CreateMockApp';
+import type { MockApp, MockRequest, MockResponse } from '../../CreateMockApp';
 import type { MockConfigOptions } from '../../createMockMiddleware';
 
 /**
  * 兼容获取 mock 文件夹中所有的 js 文件
  */
 export default async (app: MockApp, options?: MockConfigOptions) => {
-  const { mockFolder, getMockFiles, requireCjsModule } = options || {};
-  const mockFiles = getMockFiles(mockFolder);
+  const { mockFiles, requireCjsModule } = options || {};
   const requireMockFilesP = mockFiles.map((file) => {
     return requireCjsModule(path.resolve(file));
   });
@@ -33,7 +32,7 @@ export default async (app: MockApp, options?: MockConfigOptions) => {
     }
 
     if (apiPath) {
-      app[method.toLowerCase()](apiPath, (req, res) => {
+      app[method.toLowerCase()](apiPath, (req: MockRequest, res: MockResponse) => {
         if (typeof result === 'function') {
           return result(req, res);
         }

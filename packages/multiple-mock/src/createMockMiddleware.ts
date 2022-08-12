@@ -5,19 +5,20 @@ import chalk from 'chalk';
 import multer from 'multer';
 import bodyParser from 'body-parser';
 import fg from 'fast-glob';
-// import { loadConfigFromFile } from 'vite';
 import { compose as composeMiddlewares } from 'compose-middleware';
-import type { NextFunction, Request, Response } from 'express';
+import type { Handler, NextFunction, Request, Response } from 'express';
+import mockjs from 'mockjs';
 import { CreateMockApp } from './CreateMockApp';
-import type { MockApp } from './CreateMockApp';
+import type { MockApp, MockRequest, MockResponse } from './CreateMockApp';
 import { defaultMock } from './mocks/default';
+import type { createMockDataFile } from './mocks/default/createMockDataFile';
 import { requireCjsModule } from './requireCjsModule';
 
 export type Mock = {
   /**
-   * 插件名，需要是唯一
+   * 插件名，需要唯一
    */
-  name?: string;
+  name: string;
   /**
    * mock 配置文件 ，文件需要导出这样的格式：(mockApp, { mockConfigFile, mockFolder }) => {}
    */
@@ -26,6 +27,14 @@ export type Mock = {
    * mock 文件夹，需要指定，可不同于 mock 配置文件
    */
   mockFolder?: string;
+  /**
+   * 所有 mock 目录的 mock 类型文件数组
+   */
+  mockFiles?: string[];
+  /**
+   * 创建 mock 数据文件，结合给 MockServiceWorker 使用
+   */
+  createMockDataFile?: typeof createMockDataFile;
 };
 export interface MockMiddlewareOptions {
   /**
@@ -53,14 +62,13 @@ export interface MockMiddlewareOptions {
   mocks?: Mock | Mock[];
 }
 export interface MockConfigOptions extends Mock {
-  getMockFiles: typeof getMockFiles;
   requireCjsModule: typeof requireCjsModule;
 }
 export type MockConfig = (mockApp: MockApp, options: MockConfigOptions) => void | Promise<void>;
 export type MockFunction = (app: MockApp, options?: MockConfigOptions) => void;
 
 /**
- * 创建 express mock middleware
+ * 创建 express mock middleware，也兼容 vite server middleware
  * @param opt.plugins 插件支持新的 mock 配置和 mock 文件夹，可以拓展支持新的 mock 配置模式，
  * 默认插件为 defaultPlugin，配置插件会覆盖默认插件
  * @param opt.openLogger 是否开启日志，默认 true
@@ -81,19 +89,26 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
   /**
    * mock middleware
    */
-  async function mockMiddleware(req: Request, res: Response, next: NextFunction) {
+  async function mockMiddleware(req: MockRequest, res: MockResponse, next: NextFunction) {
     clearMockRequireCache(mocks);
     let mockConfig: MockConfig;
-    const createMockAppInstance = new CreateMockApp(req, res, next, { openLogger, isSinglePage: true, baseURL });
+    const createMockAppInstance = new CreateMockApp(req, res, next, {
+      createLogger,
+      mockjs,
+      chalk,
+      openLogger,
+      isSinglePage: true,
+      baseURL,
+    });
     const mockApp = createMockAppInstance.getMockApp();
 
     try {
       const mocksP = mocks.map(async (m) => {
         mockConfig = await requireCjsModule(m.mockConfigFile);
-        await mockConfig(mockApp, { ...m, getMockFiles, requireCjsModule });
+        await mockConfig(mockApp, { ...m, requireCjsModule });
       });
       await Promise.all(mocksP);
-      createMockAppInstance.run();
+      await createMockAppInstance.run();
     } catch (err) {
       consola.log(chalk.red(err.stack));
       next();
@@ -102,7 +117,7 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
   }
 
   if (returnMockMiddlewareDirectly) {
-    return mockMiddleware;
+    return mockMiddleware as Handler;
   }
 
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -116,7 +131,7 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
         ...bodyParsers,
         options.mockUploadFile && uploadBodyParser(),
         // mock 需要放在 body 解析之后
-        mockMiddleware,
+        mockMiddleware as Handler,
       ].filter(Boolean),
     )(req, res, next);
   };
@@ -177,5 +192,31 @@ export function getMockFiles(mockFolder: string) {
   const relativeMockFolder = path.relative(process.cwd(), mockFolder);
   const mockFiles = fg.sync(`${relativeMockFolder}/**/*.{js,ts}`);
 
-  return mockFiles;
+  return mockFiles.map((file) => path.resolve(file));
+}
+
+function createLogger(options: { openLogger?: boolean } = {}) {
+  const { openLogger } = options;
+
+  if (openLogger) {
+    const logger = consola.create({
+      // @ts-ignore
+      reporters: [new consola.FancyReporter()],
+      defaults: {
+        message: `${chalk.bgHex('#409EFF').black(' Mock ')}`,
+        // @ts-ignore
+        badge: true,
+      },
+    });
+
+    return {
+      error: logger.error,
+      success: logger.success,
+    };
+  }
+
+  return {
+    error: (...args: any[]) => args,
+    success: (...args: any[]) => args,
+  };
 }

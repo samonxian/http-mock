@@ -3,6 +3,7 @@ import httpMocks from 'node-mocks-http';
 import mockjs from 'mockjs';
 import type { RequestMethod } from 'node-mocks-http';
 import type { Request, Response } from 'express';
+import type { MockRequest, MockResponse } from '../';
 import { CreateMockApp } from '../';
 
 const baseURL = '/api/v1';
@@ -14,10 +15,10 @@ describe('CreateMockApp', () => {
   commonTest('PATCH');
   commonTest('DELETE');
 
-  it('should warn when the router is repeated`.', () => {
+  it('should warn when the router is repeated`.', async () => {
     const req = httpMocks.createRequest({
       method: 'GET',
-      url: '/api/v1/test/43',
+      url: 'http://localhost:8080/api/v1/test/43',
     });
 
     const restoreConsoleError = console.error;
@@ -25,7 +26,7 @@ describe('CreateMockApp', () => {
       expect(value).include('/api/v1/test/:id-GET');
     };
     const res = httpMocks.createResponse();
-    const createMockAppInstance = new CreateMockApp(req, res, () => {}, {
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res, () => {}, {
       openLogger: false,
       isSinglePage: true,
       baseURL,
@@ -34,24 +35,25 @@ describe('CreateMockApp', () => {
     mockApp.get('/test/:id', () => {});
     mockApp.post('/test/:id', () => {});
     mockApp.get('/test/:id', () => {});
-    createMockAppInstance.run();
+    await createMockAppInstance.run();
     console.log = restoreConsoleError;
   });
 });
 
 function commonTest(method: RequestMethod) {
-  it(`should work with ${method} method`, () => {
+  it(`should work with ${method} method`, async () => {
     const req = httpMocks.createRequest({
       method,
-      url: '/api/v1/test/43?name=test',
+      url: 'http://localhost:8080/api/v1/test/43?name=test',
     });
 
     const res = httpMocks.createResponse();
 
-    const createMockAppInstance = new CreateMockApp(req, res, () => {}, {
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res, () => {}, {
       openLogger: false,
       isSinglePage: true,
       baseURL,
+      mockjs,
     });
     const mockApp = createMockAppInstance.getMockApp();
     mockApp[method.toLowerCase()]('/test/:id', (req: Request, res: Response) => {
@@ -67,7 +69,7 @@ function commonTest(method: RequestMethod) {
         msg: 'success',
       });
     });
-    createMockAppInstance.run();
+    await createMockAppInstance.run();
 
     const data = res._getData();
     expect(data).toEqual(
@@ -82,24 +84,24 @@ function commonTest(method: RequestMethod) {
     );
   });
 
-  it('should response with the `Method Not Allowed`.', () => {
+  it('should response with the `Method Not Allowed`.', async () => {
     const req = httpMocks.createRequest({
       method: method === 'GET' ? 'POST' : 'GET',
-      url: '/api/v1/test/43',
+      url: 'http://localhost:8080/api/v1/test/43',
     });
 
     const res = httpMocks.createResponse();
 
-    const createMockAppInstance = new CreateMockApp(req, res, () => {}, {
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res, () => {}, {
       openLogger: false,
       isSinglePage: true,
       baseURL,
     });
     const mockApp = createMockAppInstance.getMockApp();
-    mockApp[method.toLowerCase()]('/test/:id', (req: Request, res: Response) => {
+    mockApp[method.toLowerCase()]('/test/:id', (req: MockRequest, res: MockResponse) => {
       res.send({});
     });
-    createMockAppInstance.run();
+    await createMockAppInstance.run();
 
     const data = res._getData();
     expect(data).toEqual('Method Not Allowed');

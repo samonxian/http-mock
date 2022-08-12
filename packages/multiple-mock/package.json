@@ -1,5 +1,5 @@
 {
-  "name": "express-middleware-http-mock",
+  "name": "multiple-mock",
   "version": "0.0.0",
   "description": "express http mock middleware",
   "repository": {
@@ -11,7 +11,7 @@
   "author": "samonxian",
   "main": "lib/index.js",
   "dependencies": {
-    "@types/express": "^4.17.13",
+    "@types/serviceworker": "^0.0.50",
     "consola": "^2.15.3",
     "multer": "^1.4.4",
     "body-parser": "^1.20.0",
@@ -25,6 +25,7 @@
     "mockjs": "^1.1.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.13",
     "@types/fs-extra": "^9.0.13",
     "@types/lodash": "^4.14.182",
     "@types/mockjs": "^1.0.6",
@@ -38,7 +39,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "clean": "rimraf lib tsconfig.tsbuildinfo",
+    "clean": "rimraf lib dist tsconfig.tsbuildinfo",
     "build": "npm run clean && vite build"
   }
 }

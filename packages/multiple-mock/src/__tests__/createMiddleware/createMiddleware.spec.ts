@@ -25,7 +25,7 @@ describe('createMockMiddleware', async () => {
   it('should work with `get` method`.', async () => {
     const req = httpMocks.createRequest({
       method: 'GET',
-      url: '/api/v1/topic',
+      url: 'http://localhost:8080/api/v1/topic',
     });
     await runMockMiddleware(req);
 
@@ -36,7 +36,7 @@ describe('createMockMiddleware', async () => {
   it('should work with `post` method`.', async () => {
     const req = httpMocks.createRequest({
       method: 'POST',
-      url: '/api/v1/topic/42',
+      url: 'http://localhost:8080/api/v1/topic/42',
     });
     await runMockMiddleware(req);
 
@@ -47,7 +47,7 @@ describe('createMockMiddleware', async () => {
   it('should work with `put` method`.', async () => {
     const req = httpMocks.createRequest({
       method: 'PUT',
-      url: '/api/v1/topic/42',
+      url: 'http://localhost:8080/api/v1/topic/42',
     });
     await runMockMiddleware(req);
 
@@ -58,7 +58,7 @@ describe('createMockMiddleware', async () => {
   it('should work with `patch` method`.', async () => {
     const req = httpMocks.createRequest({
       method: 'PATCH',
-      url: '/api/v1/topic/42',
+      url: 'http://localhost:8080/api/v1/topic/42',
     });
     await runMockMiddleware(req);
 
@@ -69,7 +69,7 @@ describe('createMockMiddleware', async () => {
   it('should work with `delete` method`.', async () => {
     const req = httpMocks.createRequest({
       method: 'DELETE',
-      url: '/api/v1/topic/42',
+      url: 'http://localhost:8080/api/v1/topic/42',
     });
     await runMockMiddleware(req);
 
@@ -80,7 +80,7 @@ describe('createMockMiddleware', async () => {
   it('should work with the default mock`.', async () => {
     const req = httpMocks.createRequest({
       method: 'GET',
-      url: '/api/v1/default',
+      url: 'http://localhost:8080/api/v1/default',
     });
     await createMockMiddleware(
       {
@@ -98,7 +98,7 @@ describe('createMockMiddleware', async () => {
   it('should work with the default mock part two`.', async () => {
     const req = httpMocks.createRequest({
       method: 'DELETE',
-      url: '/api/v1/topic/43',
+      url: 'http://localhost:8080/api/v1/topic/43',
     });
     await createMockMiddleware(
       {
@@ -116,7 +116,7 @@ describe('createMockMiddleware', async () => {
   it('should work with the umi mock`.', async () => {
     const req = httpMocks.createRequest({
       method: 'GET',
-      url: '/api/v1/default',
+      url: 'http://localhost:8080/api/v1/default',
     });
     await createMockMiddleware(
       {
@@ -134,7 +134,7 @@ describe('createMockMiddleware', async () => {
   it('should work with the umi mock part two`.', async () => {
     const req = httpMocks.createRequest({
       method: 'POST',
-      url: '/api/v1/topic/43',
+      url: 'http://localhost:8080/api/v1/topic/43',
     });
     await createMockMiddleware(
       {

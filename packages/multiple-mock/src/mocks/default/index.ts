@@ -1,7 +1,9 @@
 import path from 'path';
 import fs from 'fs-extra';
-import type { Request, Response } from 'express';
+import { getMockFiles } from '../../createMockMiddleware';
 import type { Mock } from '../../createMockMiddleware';
+import type { MockRequest, MockResponse } from '../../CreateMockApp';
+import { createMockDataFile } from './createMockDataFile';
 
 export interface DefaultMockOptions {
   /**
@@ -11,10 +13,14 @@ export interface DefaultMockOptions {
   mockFolder?: string;
 }
 
-export type UmiMockData = Record<string, string | Record<string, any> | ((req: Request, res: Response) => void)>;
+export type UmiMockData = Record<
+  string,
+  string | Record<string, any> | ((req: MockRequest, res: MockResponse) => void)
+>;
 
 export function defaultMock(options?: DefaultMockOptions): Mock {
-  const { mockFolder } = options || {};
+  const { mockFolder = path.resolve('./mock') } = options || {};
+  const mockFiles = getMockFiles(mockFolder);
   let mockConfigFile = path.resolve(__dirname, './mock.config.ts');
 
   if (!fs.existsSync(mockConfigFile)) {
@@ -25,6 +31,10 @@ export function defaultMock(options?: DefaultMockOptions): Mock {
   return {
     name: 'default-mock',
     mockConfigFile,
-    mockFolder: mockFolder || path.resolve('./mock'),
+    mockFolder,
+    mockFiles,
+    createMockDataFile,
   };
 }
+
+export { createCommonCode, createMockDataFileByCode } from './createMockDataFile';

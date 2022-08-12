@@ -1,6 +1,8 @@
 import path from 'path';
 import fs from 'fs-extra';
+import { getMockFiles } from '../../createMockMiddleware';
 import type { Mock } from '../../createMockMiddleware';
+import { createMockDataFile } from './createMockDataFile';
 
 export interface UmiMockOptions {
   /**
@@ -16,7 +18,8 @@ export interface UmiMockOptions {
  * @param options.mockFolder mock 文件夹，需要指定，可不同于 mock 配置文件
  */
 export function umiMock(options?: UmiMockOptions): Mock {
-  const { mockFolder } = options || {};
+  const { mockFolder = path.resolve('./mock') } = options || {};
+  const mockFiles = getMockFiles(mockFolder);
   let mockConfigFile = path.resolve(__dirname, './mock.config.ts');
 
   if (!fs.existsSync(mockConfigFile)) {
@@ -27,6 +30,8 @@ export function umiMock(options?: UmiMockOptions): Mock {
   return {
     name: 'umi-mock',
     mockConfigFile,
-    mockFolder: mockFolder || path.resolve('./mock'),
+    mockFolder,
+    mockFiles,
+    createMockDataFile,
   };
 }
