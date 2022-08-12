@@ -9,6 +9,6 @@ export default {
   },
   'POST /topic/:id': (req, res) => {
     const { id } = req.params;
-    res.send({ url: `/api/v1/topic-${id}` });
+    res.send({ url: `/api/v1/topic-${id}`, 'list|10': [{ name: 'samon' }] });
   },
 } as UmiMockData;
