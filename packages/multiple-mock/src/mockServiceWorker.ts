@@ -85,16 +85,12 @@ export function intercept(
     this.skipWaiting();
   });
 
-  this.addEventListener('activate', () => {
+  this.addEventListener('activate', (event) => {
     console.log('[MOCK] service worker activated');
 
-    const broadcast = new BroadcastChannel('mock.sw.js');
-    broadcast.postMessage({
-      type: 'activated',
-    });
-
     // clients.claim 使 service worker 立即生效，否则需要刷新页面
-    return self.clients.claim();
+    // 等待生鲜
+    event.waitUntil(self.clients.claim());
   });
 
   this.addEventListener('fetch', (event) => {

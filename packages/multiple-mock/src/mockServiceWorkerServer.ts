@@ -9,29 +9,16 @@ export async function start(
   options: { url?: string; baseURL?: string; mockSwJSMd5Hash?: string },
   callback: () => void,
 ) {
-  const { baseURL = '/', mockSwJSMd5Hash = '', url } = options || {};
-  const preveMockSwJSMd5Hash = window.localStorage.getItem('mockSwJSMd5Hash');
-  const scriptURL = url ? `${url}?hash=${mockSwJSMd5Hash}` : `${baseURL}mock.sw.js?hash=${mockSwJSMd5Hash}`;
-  const broadcast = new BroadcastChannel('mock.sw.js');
+  const { baseURL = '/', url } = options || {};
+  const scriptURL = url ? url : `${baseURL}mock.sw.js`;
   await navigator.serviceWorker.register(scriptURL);
 
   try {
     await navigator.serviceWorker.ready;
     console.log('[MOCK] mock server ready');
 
-    // md5 hash 判断 service woker 注册文件内容是否更新，不考虑用户单独清理 localStorage 而不清理 service worker 的情况
-    if (preveMockSwJSMd5Hash !== mockSwJSMd5Hash) {
-      // 首次运行和 service worker 更新后运行这里
-      broadcast.onmessage = (event) => {
-        if (event.data.type === 'activated') {
-          window.localStorage.setItem('mockSwJSMd5Hash', mockSwJSMd5Hash);
-          callback?.();
-        }
-      };
-    } else {
-      // 已注册和已激活的 service worker 运行这里
-      callback?.();
-    }
+    // 已注册和已激活的 service worker 运行这里
+    callback?.();
   } catch (err) {
     console.error('error registering MOCK:', err);
   }

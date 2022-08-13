@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs-extra';
-import md5 from 'md5';
 import { createMockMiddleware, defaultMock } from 'multiple-mock';
 import type { Mock, MockMiddlewareOptions } from 'multiple-mock';
 import type { Connect, Plugin, ResolvedConfig } from 'vite';
@@ -85,14 +84,13 @@ export function httpMockPlugin(options: Options = {}): Plugin {
         // 这里的逻辑主要是保证 service worker 首次激活或者更新激活才允许主程序代码
         // 这样才可以保证 service worker 代理到所有的主程序的 HTTP 请求
         if (id.includes(entrySuffixKey)) {
-          const mockSwJSMd5Hash = getMd5HashByFilePath(mockSwJsPath);
           const mockServerStartCode = fs.readFileSync(require.resolve('multiple-mock/lib/mockServiceWorkerServer'), {
             encoding: 'utf-8',
           });
 
           return `
             ${mockServerStartCode}
-            start({ baseURL: '${resolvedConfig.base}', mockSwJSMd5Hash: '${mockSwJSMd5Hash}' }, () => {
+            start({ baseURL: '${resolvedConfig.base}' }, () => {
               // service worker 启动成功的回调
               import('${id.replace(entrySuffixKey, '')}');
             });
@@ -136,11 +134,9 @@ export function httpMockPlugin(options: Options = {}): Plugin {
             otherImportScriptsCode: lastMockConfigs
               .map((m) => {
                 const mockDataFileName = `mockData.${m.name}.js`;
-                const mockDataFileMd5Hash = getMd5HashByFilePath(path.join(taretOutdir, mockDataFileName));
-                return `this.importScripts('./${mockDataFileName}?hash=${mockDataFileMd5Hash}');`;
+                return `this.importScripts('./${mockDataFileName}');`;
               })
               .join('\n'),
-            mockServiceMd5: getMd5HashByFilePath(mockServicePath),
           }),
           { encoding: 'utf-8' },
         );
@@ -168,12 +164,11 @@ function createMockServiceWorkerCode(options: {
   useMockJs?: boolean;
   openLogger?: boolean;
   baseURL?: string;
-  mockServiceMd5: string;
 }) {
-  const { otherImportScriptsCode, useMockJs, openLogger, baseURL, mockServiceMd5 } = options;
+  const { otherImportScriptsCode, useMockJs, openLogger, baseURL } = options;
 
   return [
-    `this.importScripts('./mockService.js?hash=${mockServiceMd5}');`, // servcie worker 启动相关代码
+    `this.importScripts('./mockService.js');`, // servcie worker 启动相关代码
     otherImportScriptsCode && otherImportScriptsCode, // servcie worker 启动相关代码
     useMockJs && `this.importScripts('http://mockjs.com/dist/mock-min.js');`,
     `
@@ -187,11 +182,6 @@ function createMockServiceWorkerCode(options: {
   ]
     .filter(Boolean)
     .join('\n');
-}
-
-export function getMd5HashByFilePath(filePath: string) {
-  const content = fs.readFileSync(filePath, { encoding: 'utf-8' });
-  return md5(content);
 }
 
 export * from 'multiple-mock';
