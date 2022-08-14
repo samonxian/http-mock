@@ -9,10 +9,11 @@ export interface MockRequest {
   query: Record<string, any>;
   body: Record<string, any>;
   params: Record<string, string>;
-  headers: Record<string, string>;
+  headers: Record<string, string | number>;
 }
 export interface MockResponse {
   statusCode: number;
+  headers: Record<string, string | number>;
   setHeader: (name: string, value: string | number) => MockResponse;
   send: (body: any) => MockResponse;
   end: (body: any) => MockResponse;
@@ -281,7 +282,6 @@ export class CreateMockApp {
         }
       }
     } else {
-      // 这里的逻辑只有在 后端才生效
       if (this.next) {
         this.next();
         // 如果不是单页面应用，才需要输出 404，
@@ -353,7 +353,7 @@ export function getSearchParams(parsedUrl: URL) {
  *@param pathname
  * @return 返回处理后的 pathname
  */
-export default function pathAdapter(pathname: string) {
+export function pathAdapter(pathname: string) {
   if (!pathname || pathname === '/') {
     return pathname;
   }

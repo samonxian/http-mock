@@ -12,7 +12,7 @@ import { build, normalizePath } from 'vite';
  */
 export async function createMockDataFile(mockFiles: string[], mockType?: string, outDir?: string) {
   let code = createCommonCode(mockFiles);
-  code = `${code}\nexport const data = mockData;`; // 最终 service work中通过 this.MockData.data 调用
+  code = `${code}\nexport default mockData;`;
 
   await createMockDataFileByCode(code, mockType, outDir);
 }
@@ -33,14 +33,13 @@ export async function createMockDataFileByCode(code: string, mockType = 'default
     build: {
       outDir: outDir || 'dist',
       emptyOutDir: false,
-      sourcemap: true,
       lib: {
-        formats: ['umd'],
+        formats: ['es'],
         entry: tempFilePath,
-        name: 'MockData', // 固定为 MockData 变量，ServiceWork 会调用的
+        name: 'noop',
         fileName: () => `mockData.${mockType}.js`,
       },
-      minify: true,
+      minify: false,
     },
   });
 }
@@ -63,17 +62,9 @@ export function createCommonCode(mockFiles: string[]) {
     imports.reduce((acc, importName) => {
       acc += `${importName},`;
       return acc;
-    }, 'export const mockData = [') + '];';
+    }, 'const mockData = [') + '];';
 
   const code = `${importCode}\n${mockDataCode}`;
 
   return code;
-}
-
-/**
- * 创建随机字符串
- * @returns 返回随机字符串
- */
-export default function createRandomString() {
-  return Math.random().toString(36).substring(2);
 }

@@ -1,54 +1,3 @@
-import type { Mockjs } from 'mockjs';
-import { CreateMockApp } from './CreateMockApp';
-import type { MockFunction } from './createMockMiddleware';
-import type { Method, MockApp, MockAppOptions, MockRequest, MockResponse } from './CreateMockApp';
-
-/**
- * 在 Service Worker fetch 事件中运行 mock app
- * @param event fetch 事件
- * @param mockFunction mock 路由执行函数
- * @param options 选项同 CreateMockApp
- */
-export async function runMockApp(
-  event: FetchEvent,
-  mockFunction?: (mockApp: MockApp) => void,
-  options?: MockAppOptions,
-) {
-  const headers = {};
-  const req: MockRequest = {
-    url: event.request.url,
-    method: event.request.method.toUpperCase() as Method,
-    headers: {},
-    query: {},
-    params: {},
-    body: {},
-  };
-  const res: MockResponse = {
-    statusCode: 200,
-    setHeader: (name, value) => {
-      headers[name] = value;
-      return res;
-    },
-    end: (body: any) => {
-      event.respondWith(
-        Promise.resolve(
-          new Response(body, {
-            headers,
-            status: res.statusCode,
-          }),
-        ),
-      );
-      return res;
-    },
-    send: null,
-  };
-
-  const createAppInstance = new CreateMockApp(req, res, null, options);
-  const mockApp = createAppInstance.getMockApp();
-  mockFunction?.(mockApp);
-  await createAppInstance.run();
-}
-
 /**
  * 启动 MockServiceWorker 拦截服务
  * @param this 需要使用 bind(this: ServiceWorkerGlobalScope)
@@ -72,36 +21,92 @@ export async function runMockApp(
  * })
  * ```
  */
-export function intercept(
-  this: ServiceWorkerGlobalScope,
-  options?: { openLogger?: boolean; baseURL?: string; mockjs?: Mockjs; mockData?: MockFunction[] },
-) {
-  const { mockjs, mockData = [], openLogger, baseURL } = options || {};
+export function intercept(this: ServiceWorkerGlobalScope, options?: { openLogger?: boolean }) {
+  const { openLogger } = options || {};
 
   this.addEventListener('install', () => {
-    console.log('[MOCK] service worker installed');
+    openLogger && console.log('[MOCK] service worker installed');
 
     // 第一时间激活 service worker，需配合 clients.claim 使用
     this.skipWaiting();
   });
 
   this.addEventListener('activate', (event) => {
-    console.log('[MOCK] service worker activated');
+    openLogger && console.log('[MOCK] service worker activated');
 
     // clients.claim 使 service worker 立即生效，否则需要刷新页面
-    // 等待生鲜
+    // 等待生效
     event.waitUntil(self.clients.claim());
   });
 
-  this.addEventListener('fetch', (event) => {
-    runMockApp(
-      event,
-      (mockApp) => {
-        mockData?.forEach((mockFunction) => {
-          mockFunction(mockApp);
+  this.addEventListener('fetch', async (event) => {
+    event.respondWith(send(event));
+  });
+}
+
+async function send(event: FetchEvent): Promise<Response> {
+  const { request, clientId } = event;
+  const accept = request.headers.get('accept') || '';
+  const cloneRequest = request.clone();
+
+  if (!((accept === '*/*' || accept === 'application/json') && !getFileNameByUrl(request.url).includes('.'))) {
+    // 先过滤有文件后缀名的 url 和非 application/json 的请求
+    return fetch(cloneRequest);
+  }
+
+  const client = await self.clients.get(clientId);
+  let requestBody: {};
+  try {
+    // 请求不传 body 这里会报错
+    requestBody = await cloneRequest.json();
+  } catch {
+    requestBody = {};
+  }
+
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+
+    channel.port1.onmessage = (event) => {
+      if (event.data.type === 'BYPASS_RESPONSE') {
+        resolve(fetch(cloneRequest));
+        return;
+      }
+
+      if (event.data.type === 'MOCK_RESPONSE') {
+        if (event.data && event.data.error) {
+          return reject(event.data.error);
+        }
+        const receivedMessage: { body?: any; init?: ResponseInit } = { ...event.data.payload };
+        const mockResponse = new Response(receivedMessage.body, {
+          ...receivedMessage.init,
+          headers: {
+            ...receivedMessage.init?.headers,
+            'x-power-by': 'multiple-mock',
+          },
         });
+        resolve(mockResponse);
+        return;
+      }
+    };
+
+    client.postMessage(
+      {
+        type: 'MOCK_REQUEST',
+        payload: {
+          request: {
+            url: request.url,
+            method: request.method.toUpperCase(),
+            body: requestBody,
+            // eslint-disable-next-line node/no-unsupported-features/es-builtins
+            headers: Object.fromEntries(cloneRequest.headers.entries()),
+          },
+        },
       },
-      { openLogger, baseURL, mockjs },
+      [channel.port2],
     );
   });
+}
+
+function getFileNameByUrl(url: string) {
+  return url.substring(url.lastIndexOf('/') + 1);
 }

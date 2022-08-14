@@ -38,6 +38,7 @@ export function httpMockPlugin(options: Options = {}): Plugin {
     mocks = [defaultMock()],
     ...restOptions
   } = options;
+  const lastMockConfigs = [].concat(mocks).filter(Boolean) as Mock[];
   const lastEntry = entry.split('.')[0];
   const entrySuffixKey = '$main$';
   let resolvedConfig: ResolvedConfig;
@@ -62,6 +63,25 @@ export function httpMockPlugin(options: Options = {}): Plugin {
       }
     },
 
+    transformIndexHtml(html) {
+      if (isBuild && useMockServiceWorker && useMockJsInServiceWorker) {
+        return {
+          html,
+          tags: [
+            {
+              tag: 'script',
+              attrs: {
+                src: 'http://mockjs.com/dist/mock-min.js',
+              },
+              injectTo: 'head',
+            },
+          ],
+        };
+      }
+
+      return html;
+    },
+
     configureServer(server) {
       if (openMockService) {
         server.middlewares.use(
@@ -73,7 +93,6 @@ export function httpMockPlugin(options: Options = {}): Plugin {
     resolveId(id, importer) {
       if (isBuild && useMockServiceWorker) {
         if (id.includes(lastEntry) && importer.includes('.html')) {
-          console.log(`${id}${entrySuffixKey}`);
           return `${id}${entrySuffixKey}`;
         }
       }
@@ -81,19 +100,37 @@ export function httpMockPlugin(options: Options = {}): Plugin {
 
     load(id) {
       if (isBuild && useMockServiceWorker) {
-        // 这里的逻辑主要是保证 service worker 首次激活或者更新激活才允许主程序代码
+        // 这里的逻辑主要是保证 service worker 首次激活或者更新激活才运行主程序代码
         // 这样才可以保证 service worker 代理到所有的主程序的 HTTP 请求
         if (id.includes(entrySuffixKey)) {
-          const mockServerStartCode = fs.readFileSync(require.resolve('multiple-mock/lib/mockServiceWorkerServer'), {
-            encoding: 'utf-8',
-          });
+          const taretOutdir = resolvedConfig.build.outDir;
+          const mockDataImportCode = lastMockConfigs
+            .map((m) => {
+              const mockDataFileName = `mockData.${m.name}.js`;
+              return `import $mock${m.name.replace(/-/g, '')} from '${path.resolve(taretOutdir, mockDataFileName)}';`;
+            })
+            .join('\n');
+          const mockDataCode = lastMockConfigs.map((m) => `...$mock${m.name.replace(/-/g, '')}`).join(',');
 
           return `
-            ${mockServerStartCode}
-            start({ baseURL: '${resolvedConfig.base}' }, () => {
-              // service worker 启动成功的回调
-              import('${id.replace(entrySuffixKey, '')}');
-            });
+import { start } from 'multiple-mock/es/mockServiceWorkerServer';
+
+${mockDataImportCode}
+start(
+  {
+    url: '${resolvedConfig.base}mock.sw.js',
+    mockData: [${mockDataCode}],
+    mockOptions: {
+      openLogger: '${openLogger}',
+      baseURL: '${baseURL}',
+      mockjs: window.Mock
+    }
+  },
+  () => {
+    // service worker 启动成功的回调
+    import('${id.replace(entrySuffixKey, '')}');
+  }
+);
           `;
         } else if (id.includes(path.resolve(lastEntry).replace(/\\/g, '/'))) {
           return readEntryFile(id);
@@ -104,18 +141,17 @@ export function httpMockPlugin(options: Options = {}): Plugin {
     async buildStart() {
       if (isBuild && useMockServiceWorker) {
         // 这里的逻辑主要是生成相关的 service worker 文件到构建目录
-        const lastMockConfigs = [].concat(mocks).filter(Boolean) as Mock[];
         const taretOutdir = resolvedConfig.build.outDir;
-        const mockServicePath = path.join(taretOutdir, 'mockService.js');
+        const mockServicePath = path.join(taretOutdir, 'mockServiceWorker.js');
         mockSwJsPath = path.join(taretOutdir, 'mock.sw.js');
         fs.ensureDirSync(taretOutdir);
 
         // 生成 mockService.js 文件
         const origialFolderPath = require.resolve('multiple-mock').replace('/lib/index.js', '');
-        fs.copyFileSync(path.join(origialFolderPath, 'dist/mockService.js'), mockServicePath);
+        fs.copyFileSync(path.join(origialFolderPath, 'dist/mockServiceWorker.js'), mockServicePath);
         fs.copyFileSync(
-          path.join(origialFolderPath, 'dist/mockService.js.map'),
-          path.join(taretOutdir, 'mockService.js.map'),
+          path.join(origialFolderPath, 'dist/mockServiceWorker.js.map'),
+          path.join(taretOutdir, 'mockServiceWorker.js.map'),
         );
 
         // 生成 mockData.[format].js 文件
@@ -124,23 +160,27 @@ export function httpMockPlugin(options: Options = {}): Plugin {
         });
         await Promise.all(mockDataPs);
 
-        // 创建 mock.sw.js 文件到打包后的静态文件根目录下
+        // 生成 mock.sw.js
         fs.writeFileSync(
           mockSwJsPath,
-          createMockServiceWorkerCode({
-            useMockJs: useMockJsInServiceWorker,
-            openLogger,
-            baseURL,
-            otherImportScriptsCode: lastMockConfigs
-              .map((m) => {
-                const mockDataFileName = `mockData.${m.name}.js`;
-                return `this.importScripts('./${mockDataFileName}');`;
-              })
-              .join('\n'),
-          }),
+          `
+this.importScripts('./mockServiceWorker.js');
+this.MockServiceWorker.intercept.bind(this)({
+  openLogger: ${openLogger},
+})
+          `,
           { encoding: 'utf-8' },
         );
       }
+    },
+
+    buildEnd() {
+      // 删除临时文件
+      lastMockConfigs.forEach((m) => {
+        const taretOutdir = resolvedConfig.build.outDir;
+        const mockDataFileName = `mockData.${m.name}.js`;
+        fs.removeSync(path.resolve(taretOutdir, mockDataFileName));
+      });
     },
   };
 }
@@ -157,31 +197,6 @@ function readEntryFile(entryPath: string) {
   }
 
   return fs.readFileSync(filePath, { encoding: 'utf-8' });
-}
-
-function createMockServiceWorkerCode(options: {
-  otherImportScriptsCode?: string;
-  useMockJs?: boolean;
-  openLogger?: boolean;
-  baseURL?: string;
-}) {
-  const { otherImportScriptsCode, useMockJs, openLogger, baseURL } = options;
-
-  return [
-    `this.importScripts('./mockService.js');`, // servcie worker 启动相关代码
-    otherImportScriptsCode && otherImportScriptsCode, // servcie worker 启动相关代码
-    useMockJs && `this.importScripts('http://mockjs.com/dist/mock-min.js');`,
-    `
-      this.MockService.intercept.bind(this)({
-        openLogger: ${openLogger},
-        baseURL: '${baseURL}',
-        mockjs: this.Mock,
-        mockData: this.MockData.data,
-      })
-    `,
-  ]
-    .filter(Boolean)
-    .join('\n');
 }
 
 export * from 'multiple-mock';

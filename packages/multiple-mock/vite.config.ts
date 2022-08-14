@@ -9,7 +9,6 @@ export default defineConfig(() => {
     plugins: [
       buildPlugin({
         fileBuild: {
-          esOutputDir: false,
           emitDeclaration: true,
           ignoreInputs: [`**/*.spec.*`, '**/*.test.*', '**/*.d.ts', '**/__tests__/**'],
         },
@@ -19,9 +18,9 @@ export default defineConfig(() => {
             sourcemap: true,
             lib: {
               entry: path.resolve(__dirname, 'src/mockServiceWorker.ts'),
-              name: 'MockService',
+              name: 'MockServiceWorker',
               formats: ['umd'],
-              fileName: () => `mockService.js`,
+              fileName: () => `mockServiceWorker.js`,
             },
             minify: true,
           },

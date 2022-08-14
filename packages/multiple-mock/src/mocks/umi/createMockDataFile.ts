@@ -45,7 +45,7 @@ const lastMockData = Object.keys(mockDataObj).map((key) => {
   }
 }).filter(Boolean);
 
-export const data = lastMockData;
+export default lastMockData;
 `;
 
   return code;
