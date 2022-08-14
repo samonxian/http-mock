@@ -36,15 +36,20 @@ export function intercept(this: ServiceWorkerGlobalScope, options?: { openLogger
 
     // clients.claim 使 service worker 立即生效，否则需要刷新页面
     // 等待生效
-    event.waitUntil(self.clients.claim());
+    event.waitUntil(this.clients.claim());
+
+    const broadcast = typeof BroadcastChannel !== undefined && new BroadcastChannel('mock.sw.js');
+    broadcast?.postMessage({
+      type: 'activated',
+    });
   });
 
   this.addEventListener('fetch', async (event) => {
-    event.respondWith(send(event));
+    event.respondWith(send.bind(this)(event));
   });
 }
 
-async function send(event: FetchEvent): Promise<Response> {
+async function send(this: ServiceWorkerGlobalScope, event: FetchEvent): Promise<Response> {
   const { request, clientId } = event;
   const accept = request.headers.get('accept') || '';
   const cloneRequest = request.clone();
@@ -54,7 +59,7 @@ async function send(event: FetchEvent): Promise<Response> {
     return fetch(cloneRequest);
   }
 
-  const client = await self.clients.get(clientId);
+  const client = await this.clients.get(clientId);
   let requestBody: {};
   try {
     // 请求不传 body 这里会报错
@@ -63,7 +68,7 @@ async function send(event: FetchEvent): Promise<Response> {
     requestBody = {};
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const channel = new MessageChannel();
 
     channel.port1.onmessage = (event) => {
@@ -73,9 +78,6 @@ async function send(event: FetchEvent): Promise<Response> {
       }
 
       if (event.data.type === 'MOCK_RESPONSE') {
-        if (event.data && event.data.error) {
-          return reject(event.data.error);
-        }
         const receivedMessage: { body?: any; init?: ResponseInit } = { ...event.data.payload };
         const mockResponse = new Response(receivedMessage.body, {
           ...receivedMessage.init,

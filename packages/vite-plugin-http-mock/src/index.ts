@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs-extra';
+import md5 from 'md5';
 import { createMockMiddleware, defaultMock } from 'multiple-mock';
 import type { Mock, MockMiddlewareOptions } from 'multiple-mock';
 import type { Connect, Plugin, ResolvedConfig } from 'vite';
@@ -111,6 +112,7 @@ export function httpMockPlugin(options: Options = {}): Plugin {
             })
             .join('\n');
           const mockDataCode = lastMockConfigs.map((m) => `...$mock${m.name.replace(/-/g, '')}`).join(',');
+          const mockSwJsMd5Hash = getMd5HashByFilePath(mockSwJsPath);
 
           return `
 import { start } from 'multiple-mock/es/mockServiceWorkerServer';
@@ -120,6 +122,7 @@ start(
   {
     url: '${resolvedConfig.base}mock.sw.js',
     mockData: [${mockDataCode}],
+    mockSwJsMd5Hash: '${mockSwJsMd5Hash}',
     mockOptions: {
       openLogger: '${openLogger}',
       baseURL: '${baseURL}',
@@ -141,7 +144,7 @@ start(
     async buildStart() {
       if (isBuild && useMockServiceWorker) {
         // 这里的逻辑主要是生成相关的 service worker 文件到构建目录
-        const taretOutdir = resolvedConfig.build.outDir;
+        const taretOutdir = path.resolve(resolvedConfig.build.outDir);
         const mockServicePath = path.join(taretOutdir, 'mockServiceWorker.js');
         mockSwJsPath = path.join(taretOutdir, 'mock.sw.js');
         fs.ensureDirSync(taretOutdir);
@@ -160,11 +163,12 @@ start(
         });
         await Promise.all(mockDataPs);
 
+        const mockServiceWorkeMd5Hash = getMd5HashByFilePath(mockServicePath);
         // 生成 mock.sw.js
         fs.writeFileSync(
           mockSwJsPath,
           `
-this.importScripts('./mockServiceWorker.js');
+this.importScripts('./mockServiceWorker.js?hash=${mockServiceWorkeMd5Hash}');
 this.MockServiceWorker.intercept.bind(this)({
   openLogger: ${openLogger},
 })
@@ -197,6 +201,11 @@ function readEntryFile(entryPath: string) {
   }
 
   return fs.readFileSync(filePath, { encoding: 'utf-8' });
+}
+
+export function getMd5HashByFilePath(filePath: string) {
+  const content = fs.readFileSync(filePath, { encoding: 'utf-8' });
+  return md5(content);
 }
 
 export * from 'multiple-mock';
