@@ -7,8 +7,14 @@ export default {
     const { name } = req.query || {};
     res.send({ url: `/api/v1/topic-${id}`, name });
   },
+  'GET http://www.test.com/api/v1/topic/:id': (req, res) => {
+    const { id } = req.params;
+    const { name } = req.query || {};
+    res.send({ url: `http://www.test.com/api/v1/topic-${id}`, name });
+  },
   'POST /topic/:id': (req, res) => {
     const { id } = req.params;
-    res.send({ url: `/api/v1/topic-${id}`, 'list|10': [{ name: 'samon' }] });
+    const { name } = req.body;
+    res.send({ url: `/api/v1/topic-${id}`, 'list|10': [{ name }] });
   },
 } as UmiMockData;

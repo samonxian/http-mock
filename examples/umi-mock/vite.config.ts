@@ -12,4 +12,7 @@ export default defineConfig({
       useMockJsInServiceWorker: true,
     }),
   ],
+  build: {
+    sourcemap: true,
+  },
 });

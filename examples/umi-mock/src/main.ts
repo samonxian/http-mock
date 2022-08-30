@@ -30,10 +30,21 @@ fetch('/api/v1/topic/2?name=samon')
     console.log(result);
   });
 
-fetch('/api/v1/topic/2?a=2', { method: 'POST', body: JSON.stringify({ params: { test: 2 } }) })
+fetch('http://www.test.com/api/v1/topic/2?name=samon')
   .then(async (response) => {
     return response.json();
   })
   .then((result) => {
     console.log(result);
+  });
+
+fetch('/api/v1/topic/2?a=2', { method: 'POST', body: JSON.stringify({ name: 'samon' }) })
+  .then(async (response) => {
+    return response.json();
+  })
+  .then((result) => {
+    console.log(result);
+  })
+  .catch((err) => {
+    console.log(err);
   });
