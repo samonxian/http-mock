@@ -1,6 +1,6 @@
 {
   "name": "multiple-mock",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "express http mock middleware",
   "repository": {
     "url": "https://github.com/samonxian/http-mock"
@@ -12,19 +12,19 @@
   "author": "samonxian",
   "main": "lib/index.js",
   "dependencies": {
-    "@types/serviceworker": "^0.0.50",
     "@mswjs/interceptors": "^0.17.3",
-    "consola": "^2.15.3",
-    "multer": "^1.4.4",
+    "@types/serviceworker": "^0.0.50",
     "body-parser": "^1.20.0",
-    "compose-middleware": "^5.0.1",
     "chalk": "^4.1.2",
-    "fs-extra": "^10.1.0",
-    "fast-glob": "^3.2.11",
+    "compose-middleware": "^5.0.1",
+    "consola": "^2.15.3",
     "esbuild": "^0.14.53",
-    "path-to-regexp": "^6.2.1",
+    "fast-glob": "^3.2.11",
+    "fs-extra": "^10.1.0",
     "lodash": "^4.17.21",
-    "mockjs": "^1.1.0"
+    "mockjs": "^1.1.0",
+    "multer": "^1.4.4",
+    "path-to-regexp": "^6.2.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
@@ -33,12 +33,12 @@
     "@types/mockjs": "^1.0.6",
     "@types/multer": "^1.4.7",
     "axios": "^0.27.2",
-    "node-mocks-http": "^1.11.0",
     "express": "^4.18.1",
-    "rimraf": "^3.0.2",
     "happy-dom": "^6.0.4",
-    "vite-plugin-build": "^0.6.0",
+    "node-mocks-http": "^1.11.0",
+    "rimraf": "^3.0.2",
     "vite": "^3.0.4",
+    "vite-plugin-build": "^0.6.0",
     "vitest": "^0.20.2"
   },
   "scripts": {

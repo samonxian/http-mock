@@ -1,7 +1,7 @@
 {
   "name": "umi-mock",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "multiple-mock": "^0.1.0",
     "typescript": "^4.6.4",
-    "multiple-mock": "^0.0.0",
-    "vite-plugin-http-mock": "^0.0.0",
-    "vite": "^3.0.4"
+    "vite": "^3.0.4",
+    "vite-plugin-http-mock": "^0.1.0"
   }
 }
