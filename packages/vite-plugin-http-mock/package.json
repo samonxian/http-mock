@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "name": "vite-plugin-http-mock",
   "author": "samonxian",
   "main": "lib/index.js",
@@ -14,7 +14,7 @@
   "dependencies": {
     "fs-extra": "^10.1.0",
     "md5": "^2.3.0",
-    "multiple-mock": "^0.1.0"
+    "multiple-mock": "^0.1.1"
   },
   "devDependencies": {
     "@types/fs-extra": "^9.0.13",

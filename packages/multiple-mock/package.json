@@ -1,6 +1,6 @@
 {
   "name": "multiple-mock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "express http mock middleware",
   "repository": {
     "url": "https://github.com/samonxian/http-mock"
