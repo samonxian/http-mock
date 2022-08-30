@@ -11,16 +11,31 @@ interface NodeModuleWithCompile extends NodeModule {
 }
 
 /**
- * 功能同 require 函数，支持 ts 文件，不过是异步的方式，非同步
- * @param file
+ * 功能同 require 函数，支持 ts 文件（后缀名必须是 `.ts` 结尾）
+ * @param file 文件的路径，可省略后缀名
+ * @param extensions 拓展后缀名，默认为 ['.js','.ts']
  * @returns
  */
-export async function requireCjsModule(file: string): Promise<any> {
+export async function requireCjsModule(file: string, extensions = ['.js', '.ts']): Promise<any> {
   const etxname = path.extname(file);
+
+  if (!extensions.includes(etxname)) {
+    file = extensions.reduce((acc, cur) => {
+      const fixFile = path.resolve(`${acc}${cur}`);
+
+      if (fs.existsSync(fixFile)) {
+        return fixFile;
+      }
+
+      return acc;
+    }, file);
+  }
+
   let isTs = false;
   file = path.resolve(file);
+  const lastEtxname = path.extname(file);
 
-  if (etxname === '.ts') {
+  if (lastEtxname !== '.js') {
     isTs = true;
   }
 
@@ -41,7 +56,8 @@ export async function requireCjsModule(file: string): Promise<any> {
   }
 
   const raw = require(file);
-  return raw.__esModule ? raw.default : raw;
+
+  return raw.__esModule && 'default' in raw ? raw.default : raw;
 }
 
 const _require = createRequire(import.meta.url);
@@ -62,5 +78,6 @@ export async function loadFromBundledFile(fileName: string, bundledCode: string)
   delete _require.cache[_require.resolve(fileName)];
   const raw = _require(fileName);
   _require.extensions[loaderExt] = defaultLoader;
-  return raw.__esModule ? raw.default : raw;
+
+  return raw.__esModule && 'default' in raw ? raw.default : raw;
 }

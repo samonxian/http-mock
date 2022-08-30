@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import httpMocks from 'node-mocks-http';
 import type { Request } from 'express';
 import { createMockMiddleware, defaultMock, umiMock } from '../../';
+import type { Mock } from '../../';
 
 const res = httpMocks.createResponse();
 const runMockMiddleware = async (req: Request) => {
-  const mocks = {
+  const mocks: Mock = {
+    name: 'test-mock',
     mockConfigFile: path.resolve(__dirname, './mock/mock.config.ts'),
     mockFolder: path.resolve(__dirname, './mock'),
   };

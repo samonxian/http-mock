@@ -26,10 +26,11 @@ describe('CreateMockApp', () => {
       expect(value).include('/api/v1/test/:id-GET');
     };
     const res = httpMocks.createResponse();
-    const createMockAppInstance = new CreateMockApp(req as MockRequest, res, () => {}, {
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res as unknown as MockResponse, () => {}, {
       openLogger: false,
       isSinglePage: true,
       baseURL,
+      interceptedHost: 'localhost:8080',
     });
     const mockApp = createMockAppInstance.getMockApp();
     mockApp.get('/test/:id', () => {});
@@ -37,6 +38,26 @@ describe('CreateMockApp', () => {
     mockApp.get('/test/:id', () => {});
     await createMockAppInstance.run();
     console.log = restoreConsoleError;
+  });
+
+  it('should run next function when interceptedHost is not equaled.`.', async () => {
+    const req = httpMocks.createRequest({
+      method: 'GET',
+      url: 'http://localhost:8080/api/v1/test/43',
+    });
+
+    const res = httpMocks.createResponse();
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res as unknown as MockResponse, () => {}, {
+      openLogger: false,
+      isSinglePage: true,
+      baseURL,
+      interceptedHost: 'test',
+    });
+    const mockApp = createMockAppInstance.getMockApp();
+    mockApp.get('/test/:id', () => {
+      throw new Error('error');
+    });
+    await createMockAppInstance.run();
   });
 });
 
@@ -49,11 +70,12 @@ function commonTest(method: RequestMethod) {
 
     const res = httpMocks.createResponse();
 
-    const createMockAppInstance = new CreateMockApp(req as MockRequest, res, () => {}, {
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res as unknown as MockResponse, () => {}, {
       openLogger: false,
       isSinglePage: true,
       baseURL,
       mockjs,
+      interceptedHost: 'localhost:8080',
     });
     const mockApp = createMockAppInstance.getMockApp();
     mockApp[method.toLowerCase()]('/test/:id', (req: Request, res: Response) => {
@@ -66,6 +88,11 @@ function commonTest(method: RequestMethod) {
           name,
           'list|3': ['mock'],
         },
+        msg: 'success',
+      });
+    });
+    mockApp[method.toLowerCase()]('http://www.test.com/api/v1/test/:id', (req: Request, res: Response) => {
+      res.send({
         msg: 'success',
       });
     });
@@ -92,10 +119,11 @@ function commonTest(method: RequestMethod) {
 
     const res = httpMocks.createResponse();
 
-    const createMockAppInstance = new CreateMockApp(req as MockRequest, res, () => {}, {
+    const createMockAppInstance = new CreateMockApp(req as MockRequest, res as unknown as MockResponse, () => {}, {
       openLogger: false,
       isSinglePage: true,
       baseURL,
+      interceptedHost: 'localhost:8080',
     });
     const mockApp = createMockAppInstance.getMockApp();
     mockApp[method.toLowerCase()]('/test/:id', (req: MockRequest, res: MockResponse) => {

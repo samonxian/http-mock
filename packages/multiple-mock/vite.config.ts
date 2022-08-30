@@ -13,22 +13,32 @@ export default defineConfig(() => {
           ignoreInputs: [`**/*.spec.*`, '**/*.test.*', '**/*.d.ts', '**/__tests__/**'],
         },
         libBuild: {
-          buildOptions: {
-            emptyOutDir: false,
-            sourcemap: true,
-            lib: {
-              entry: path.resolve(__dirname, 'src/mockServiceWorker.ts'),
-              name: 'MockServiceWorker',
-              formats: ['umd'],
-              fileName: () => `mockServiceWorker.js`,
+          buildOptions: [
+            {
+              sourcemap: true,
+              lib: {
+                entry: path.resolve(__dirname, 'src/serviceWorkerMockHttp.ts'),
+                name: 'MockHttp',
+                formats: ['umd'],
+                fileName: () => `serviceWorkerMockHttp.js`,
+              },
             },
-            minify: true,
-          },
+            {
+              sourcemap: true,
+              lib: {
+                entry: path.resolve(__dirname, 'src/mock.sw.ts'),
+                name: 'noop',
+                formats: ['umd'],
+                fileName: () => `mock.sw.js`,
+              },
+            },
+          ],
         },
       }),
     ],
     test: {
       watch: false,
+      environment: 'happy-dom',
     },
   };
 });

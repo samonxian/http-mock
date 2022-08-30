@@ -91,6 +91,11 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
    */
   async function mockMiddleware(req: MockRequest, res: MockResponse, next: NextFunction) {
     clearMockRequireCache(mocks);
+    // vite http request url 不包含 host 需要兼容
+    const parsedUrl = new URL(
+      req.url,
+      req.headers.host && !req.url.includes(req.headers.host as string) ? `http://${req.headers.host}` : undefined,
+    );
     let mockConfig: MockConfig;
     const createMockAppInstance = new CreateMockApp(req, res, next, {
       createLogger,
@@ -99,6 +104,7 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
       openLogger,
       isSinglePage: true,
       baseURL,
+      interceptedHost: parsedUrl.host,
     });
     const mockApp = createMockAppInstance.getMockApp();
 
@@ -117,7 +123,7 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
   }
 
   if (returnMockMiddlewareDirectly) {
-    return mockMiddleware as Handler;
+    return mockMiddleware as unknown as (req: Request, res: Response, next: NextFunction) => Promise<void>;
   }
 
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -131,7 +137,7 @@ export function createMockMiddleware(opt?: MockMiddlewareOptions, returnMockMidd
         ...bodyParsers,
         options.mockUploadFile && uploadBodyParser(),
         // mock 需要放在 body 解析之后
-        mockMiddleware as Handler,
+        mockMiddleware as unknown as Handler,
       ].filter(Boolean),
     )(req, res, next);
   };

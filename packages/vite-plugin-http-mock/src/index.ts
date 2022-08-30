@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs-extra';
 import md5 from 'md5';
+import * as multipleMock from 'multiple-mock';
 import { createMockMiddleware, defaultMock } from 'multiple-mock';
 import type { Mock, MockMiddlewareOptions } from 'multiple-mock';
 import type { Connect, Plugin, ResolvedConfig } from 'vite';
@@ -27,6 +28,8 @@ export interface Options extends MockMiddlewareOptions {
    */
   entry?: string;
 }
+
+const mockSwJsFileName = 'mock.sw.js';
 
 export function httpMockPlugin(options: Options = {}): Plugin {
   const {
@@ -72,7 +75,7 @@ export function httpMockPlugin(options: Options = {}): Plugin {
             {
               tag: 'script',
               attrs: {
-                src: 'http://mockjs.com/dist/mock-min.js',
+                src: 'https://unpkg.com/mockjs@1.1.0/dist/mock-min.js',
               },
               injectTo: 'head',
             },
@@ -115,7 +118,7 @@ export function httpMockPlugin(options: Options = {}): Plugin {
           const mockSwJsMd5Hash = getMd5HashByFilePath(mockSwJsPath);
 
           return `
-import { start } from 'multiple-mock/es/mockServiceWorkerServer';
+import { start } from 'multiple-mock/es/setupWorker';
 
 ${mockDataImportCode}
 start(
@@ -123,17 +126,18 @@ start(
     url: '${resolvedConfig.base}mock.sw.js',
     mockData: [${mockDataCode}],
     mockSwJsMd5Hash: '${mockSwJsMd5Hash}',
+    scope: '${resolvedConfig.base}',
     mockOptions: {
+      interceptedHost: window.location.host,
       openLogger: '${openLogger}',
       baseURL: '${baseURL}',
       mockjs: window.Mock
     }
-  },
-  () => {
-    // service worker 启动成功的回调
-    import('${id.replace(entrySuffixKey, '')}');
   }
-);
+).then(() => {
+  // service worker 启动成功的回调
+  import('${id.replace(entrySuffixKey, '')}');
+});
           `;
         } else if (id.includes(path.resolve(lastEntry).replace(/\\/g, '/'))) {
           return readEntryFile(id);
@@ -145,16 +149,15 @@ start(
       if (isBuild && useMockServiceWorker) {
         // 这里的逻辑主要是生成相关的 service worker 文件到构建目录
         const taretOutdir = path.resolve(resolvedConfig.build.outDir);
-        const mockServicePath = path.join(taretOutdir, 'mockServiceWorker.js');
-        mockSwJsPath = path.join(taretOutdir, 'mock.sw.js');
+        mockSwJsPath = path.join(taretOutdir, mockSwJsFileName);
         fs.ensureDirSync(taretOutdir);
 
         // 生成 mockService.js 文件
         const origialFolderPath = require.resolve('multiple-mock').replace('/lib/index.js', '');
-        fs.copyFileSync(path.join(origialFolderPath, 'dist/mockServiceWorker.js'), mockServicePath);
+        fs.copyFileSync(path.join(origialFolderPath, 'dist', mockSwJsFileName), mockSwJsPath);
         fs.copyFileSync(
-          path.join(origialFolderPath, 'dist/mockServiceWorker.js.map'),
-          path.join(taretOutdir, 'mockServiceWorker.js.map'),
+          path.join(origialFolderPath, `dist/${mockSwJsFileName}.map`),
+          path.join(taretOutdir, `${mockSwJsFileName}.map`),
         );
 
         // 生成 mockData.[format].js 文件
@@ -162,19 +165,6 @@ start(
           return mock.createMockDataFile?.(mock.mockFiles, mock.name, taretOutdir);
         });
         await Promise.all(mockDataPs);
-
-        const mockServiceWorkeMd5Hash = getMd5HashByFilePath(mockServicePath);
-        // 生成 mock.sw.js
-        fs.writeFileSync(
-          mockSwJsPath,
-          `
-this.importScripts('./mockServiceWorker.js?hash=${mockServiceWorkeMd5Hash}');
-this.MockServiceWorker.intercept.bind(this)({
-  openLogger: ${openLogger},
-})
-          `,
-          { encoding: 'utf-8' },
-        );
       }
     },
 
@@ -209,3 +199,10 @@ export function getMd5HashByFilePath(filePath: string) {
 }
 
 export * from 'multiple-mock';
+
+// 必须这样再导出一次，否则转换为 js 文件后 vite 配置文件读取不了
+// 因为 vite 配置文件做了兼容运行 ts 文件，只支持 default 导出的使用
+export default {
+  httpMockPlugin,
+  ...multipleMock,
+};

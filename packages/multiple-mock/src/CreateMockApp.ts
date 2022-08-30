@@ -4,10 +4,9 @@ import type { Mockjs } from 'mockjs';
 
 export interface MockRequest {
   url: string;
-  originalUrl?: string;
   method: Method;
   query: Record<string, any>;
-  body: Record<string, any>;
+  body: any;
   params: Record<string, string>;
   headers: Record<string, string | number>;
 }
@@ -22,6 +21,11 @@ export type NextFunction = ((err?: any) => void) | null;
 export type Method = 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH' | 'any';
 export type MockApp = ReturnType<CreateMockApp['getMockApp']>;
 export interface MockAppOptions {
+  /**
+   * 目标拦截的 host，如果比匹配，则不会拦截并 mock，不传递则拦截所有 host
+   * @defaults localhost
+   */
+  interceptedHost?: string;
   /**
    * 是否开启日志
    * @defaults true
@@ -68,6 +72,7 @@ export class CreateMockApp {
   private logger: ReturnType<typeof defaultCreateLogger>;
   private chalk: MockAppOptions['chalk'];
   private baseURL?: string;
+  private pathname?: string;
   private uniqueRouterPaths: Record<string, any> = {};
 
   constructor(
@@ -96,15 +101,27 @@ export class CreateMockApp {
     this.req = req;
     this.res = this.getRewritedRes(res);
     this.next = next;
-    this.options = options || {};
-    this.baseURL = pathAdapter(options.baseURL);
+    this.options = { interceptedHost: 'localhost', baseURL: '/', ...options };
+    this.baseURL = pathAdapter(this.options.baseURL);
     this.uniqueRouterPaths = {};
     // 每个匹配到的 mock api 都会有一个回调，可以响应内容
-    // 结构为 { [method]: [callback] }
     // callback 参数为 req 和 res
     this.resultCallbackObj = undefined;
-    this.chalk = options.chalk || defaultChalk;
-    this.logger = (options.createLogger || defaultCreateLogger)({ openLogger: options.openLogger });
+    this.chalk = this.options.chalk || defaultChalk;
+    this.logger = (this.options.createLogger || defaultCreateLogger)({ openLogger: this.options.openLogger });
+    this.parsedURL();
+  }
+
+  private parsedURL() {
+    const { headers = {}, url } = this.req;
+    // vite http request url 不包含 host 需要兼容
+    const parsedUrl = new URL(
+      url,
+      headers.host && !url.includes(headers.host as string) ? `http://${headers.host}` : undefined,
+    );
+    this.req.headers.host = parsedUrl.host; // 浏览器端需要加上 host
+    this.req.query = getSearchParams(parsedUrl);
+    this.pathname = parsedUrl.pathname;
   }
 
   /**
@@ -203,13 +220,30 @@ export class CreateMockApp {
       throw new TypeError('Expected the callback to be a funciton.');
     }
 
+    let { interceptedHost } = this.options;
+    let callbackKey: string = method;
     let lastApiPath = pathAdapter(apiPath);
 
     if (this.baseURL) {
-      lastApiPath = `${this.baseURL}${pathAdapter(apiPath)}`;
+      lastApiPath = `${pathAdapter(this.baseURL)}${pathAdapter(apiPath)}`;
     }
 
-    const uniqueRouterPath = `${lastApiPath}-${method}`;
+    if (/^http/.test(apiPath)) {
+      // 获取路由中的
+      const apiPathParsedUrl = new URL(apiPath);
+      lastApiPath = apiPathParsedUrl.pathname;
+      callbackKey = apiPathParsedUrl.host + method;
+      // mock路由为绝对HTTP路径的时候，设置当前拦截 hostname 为当前路由 hostname
+      interceptedHost = apiPathParsedUrl.host;
+    }
+
+    if (interceptedHost && this.req.headers.host !== interceptedHost) {
+      // host 不匹配则不做 mock 拦截
+      return;
+    }
+
+    // 路由唯一处理
+    const uniqueRouterPath = `${lastApiPath}-${callbackKey}`;
     if (uniqueRouterPath === this.uniqueRouterPaths[uniqueRouterPath]) {
       console.error(this.chalk.red(`路由 ${this.chalk.cyan(uniqueRouterPath)} 重复`));
       return;
@@ -222,11 +256,8 @@ export class CreateMockApp {
       strict: false,
       sensitive: true,
     });
-    const { headers = {} } = this.req;
-    // node 中 originalUrl 才是全部的 url
-    const parsedUrl = new URL(this.req.url, headers.host ? `http://${this.req.headers.host}` : undefined);
-    this.req.query = getSearchParams(parsedUrl);
-    const match = regexp.exec(parsedUrl.pathname);
+
+    const match = regexp.exec(this.pathname);
 
     if (!match) {
       return;
@@ -242,7 +273,8 @@ export class CreateMockApp {
 
     this.resultCallbackObj = {
       ...this.resultCallbackObj,
-      [method]: callback,
+      [method + ':method']: callbackKey,
+      [callbackKey]: callback,
     };
   }
 
@@ -255,7 +287,7 @@ export class CreateMockApp {
     ];
 
     if (this.resultCallbackObj) {
-      const resultCallback = this.resultCallbackObj[req.method];
+      const resultCallback = this.resultCallbackObj[this.resultCallbackObj[req.method + ':method']];
 
       if (!resultCallback) {
         res.statusCode = 405;
@@ -325,7 +357,7 @@ const defaultChalk = {
  * @returns true or false
  */
 export function isPlainObject(obj?: any): boolean {
-  if (typeof obj !== 'object' || obj === null) return false;
+  if (typeof obj !== 'object' || obj == null) return false;
 
   let proto = obj;
   // eslint-disable-next-line eqeqeq
@@ -355,7 +387,7 @@ export function getSearchParams(parsedUrl: URL) {
  */
 export function pathAdapter(pathname: string) {
   if (!pathname || pathname === '/') {
-    return pathname;
+    return '';
   }
   if (typeof pathname !== 'string') {
     throw new TypeError('Expected the pathanme to be a string.');
