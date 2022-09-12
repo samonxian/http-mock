@@ -31,6 +31,7 @@ export type Mock = {
    * 所有 mock 目录的 mock 类型文件数组
    */
   mockFiles?: string[];
+  getMockFiles?: typeof getMockFiles;
   /**
    * 创建 mock 数据文件，结合给 MockServiceWorker 使用
    */

@@ -31,6 +31,7 @@ export function umiMock(options?: UmiMockOptions): Mock {
     name: 'umi-mock',
     mockConfigFile,
     mockFolder,
+    getMockFiles,
     mockFiles,
     createMockDataFile,
   };

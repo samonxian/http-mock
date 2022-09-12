@@ -31,6 +31,7 @@ export function defaultMock(options?: DefaultMockOptions): Mock {
   return {
     name: 'default-mock',
     mockConfigFile,
+    getMockFiles,
     mockFolder,
     mockFiles,
     createMockDataFile,

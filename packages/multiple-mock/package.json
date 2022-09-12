@@ -44,7 +44,7 @@
   },
   "scripts": {
     "test": "vitest",
-    "clean": "rimraf lib dist tsconfig.tsbuildinfo",
+    "clean": "rimraf lib dist es tsconfig.tsbuildinfo",
     "build": "npm run clean && vite build"
   }
 }
