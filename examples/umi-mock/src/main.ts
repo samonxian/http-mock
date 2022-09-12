@@ -1,50 +1,35 @@
 import './style.css';
-import typescriptLogo from './typescript.svg';
-import { setupCounter } from './counter';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`;
-
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!);
-
-fetch('/api/v1/topic/2?name=samon')
-  .then(async (response) => {
+const newFetch = (url: string, ...args: any[]) => {
+  return fetch(url, ...args).then(async (response) => {
     return response.json();
-  })
-  .then((result) => {
-    console.log(result);
   });
+};
 
-fetch('http://www.test.com/api/v1/topic/2?name=samon')
-  .then(async (response) => {
-    return response.json();
-  })
-  .then((result) => {
-    console.log(result);
-  });
+const fetch1 = newFetch('/api/v1/topic/2?name=samon');
+const fetch2 = newFetch('/api/v1/topic/2?name=samon', { method: 'DELETE' });
+const fetch3 = newFetch('/api/v1/topic/2?name=samon', {
+  method: 'POST',
+  body: JSON.stringify({ title: 'title', content: 'content' }),
+});
+const fetch4 = newFetch('/api/v1/topic/2?name=samon', {
+  method: 'PATCH',
+  body: JSON.stringify({ title: 'title', content: 'content' }),
+});
+const fetch5 = newFetch('/api/v1/topic/2?name=samon', {
+  method: 'PUT',
+  body: JSON.stringify({ title: 'title', content: 'content' }),
+});
 
-fetch('/api/v1/topic/2?a=2', { method: 'POST', body: JSON.stringify({ name: 'samon' }) })
-  .then(async (response) => {
-    return response.json();
-  })
-  .then((result) => {
-    console.log(result);
-  })
-  .catch((err) => {
-    console.log(err);
+Promise.all([fetch1, fetch2, fetch3, fetch4, fetch5]).then((result) => {
+  result.forEach((r) => {
+    const div = document.createElement('div');
+    div.innerHTML = `
+<h3>${r.method}: ${r.url}</h3>
+<textarea >
+${JSON.stringify(r, null, 2)}
+</textarea>
+    `;
+    document.querySelector<HTMLDivElement>('#app')?.append(div);
   });
+});

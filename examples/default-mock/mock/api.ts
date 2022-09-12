@@ -1,30 +1,48 @@
 import type { MockApp } from 'vite-plugin-http-mock';
 
 export default (app: MockApp) => {
-  app.get('/topic', (req, res) => {
-    res.send({ url: '/api/v1/topic-get' });
-  });
-
   app.get('/topic/:id', (req, res) => {
-    const { id } = req.params;
-    const { name } = req.query || {};
-    res.send({ url: `/api/v1/topic-${id}`, name });
-  });
-
-  app.post('/topic/:id', (req, res) => {
-    const { id } = req.params;
-    res.send({ url: `/api/v1/topic-${id}`, 'list|10': [{ name: 'samon' }] });
-  });
-
-  app.patch('/topic/:id', (req, res) => {
-    res.send({ url: '/api/v1/topic-patch' });
-  });
-
-  app.put('/topic/:id', (req, res) => {
-    res.send({ url: '/api/v1/topic-put' });
+    res.send({
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      params: req.params,
+    });
   });
 
   app.delete('/topic/:id', (req, res) => {
-    res.send({ url: '/api/v1/topic-delete' });
+    res.send({
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      params: req.params,
+    });
+  });
+
+  app.post('/topic/:id', (req, res) => {
+    res.send({
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      params: req.params,
+    });
+  });
+
+  app.patch('/topic/:id', (req, res) => {
+    res.send({
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      params: req.params,
+    });
+  });
+
+  app.put('/topic/:id', (req, res) => {
+    res.send({
+      url: req.url,
+      method: req.method,
+      body: req.body,
+      params: req.params,
+    });
   });
 };
